@@ -80,7 +80,7 @@ class Solver:
         # Run the evaluation creator
         evaluator_generator(self._toolbox, self._mutation_rate)
 
-    def solve(self, verbose: bool = False) -> None:
+    def solve(self, *, verbose: bool = False) -> None:
         """Runs the evolutionary optimization process using NSGA-II.
         Each individual is a Chromosome built from valid assignments.
         The evaluation function (incorporating scenario simulation) computes the expected penalties.
@@ -116,10 +116,12 @@ class Solver:
             population, k=len(population), first_front_only=True
         )[0]
 
-    def results(self) -> list[Chromosome]:
+    def results(self) -> Chromosome:
         """Retrieve the results of the evolutionary optimization."""
         if self._result is None:
             raise RuntimeError(
                 "Solver has not been run yet. Please call solve() first."
             )
-        return self._result
+        if not self._result:
+            raise RuntimeError("No solution has been found.")
+        return self._result[0]  # Otherwise, just return the first solution

@@ -105,7 +105,7 @@ def individuals_generator(
     # Define a function to generate a single individual (Chromosome)
     def __generate_individual() -> Chromosome:
         """Local method to generate a single individual (Chromosome)"""
-        assignments = []
+        selected_assignments = []
         for subj in subjects:
             # Filter the valid assignments for the current subject
             valid_for_subj = [
@@ -115,9 +115,9 @@ def individuals_generator(
                 raise ValueError(f"No valid assignment found for subject: {subj.name}")
             # Select a random assignment (can be modified)
             chosen_assignment = random.choice(valid_for_subj)
-            assignments.append(chosen_assignment)
+            selected_assignments.append(chosen_assignment)
         # And finally, return the Chromosome
-        return creator.Individual(Chromosome(assignments))  # type: ignore
+        return creator.Individual(Chromosome(selected_assignments))  # type: ignore
 
     # Use the `__generate_individual` function to create individuals
     toolbox.register("individual", __generate_individual)

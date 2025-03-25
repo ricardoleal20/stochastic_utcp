@@ -18,6 +18,7 @@ from model.types import Assignment
 W1 = 1.0
 W2 = 1.0
 W3 = 1.0
+HARD_PENALTY_WEIGHT = int(1e9)
 
 
 @dataclass(slots=True)
@@ -73,7 +74,6 @@ class Chromosome:
 
         # Iterate over the assignments
         for assignment in self.assignments:
-            # Suppose that:
             # IF the classroom name does not contain a certain keyword, penalize (e.g., for CC)
             if "Salón" not in assignment.classroom:
                 penalty_CC += 1.0
@@ -85,9 +85,59 @@ class Chromosome:
             if "Laboratorio" in assignment.classroom:
                 penalty_CB += 1.0
 
+        # Get the hard penalty from the hard cons
+        hard_penalty = self.__hard_constraints()
+
         # Apply the defined weights for each penalty
         weighted_CC = W1 * penalty_CC
         weighted_PH = W2 * penalty_PH
         weighted_CB = W3 * penalty_CB
 
-        return (weighted_CC, weighted_PH, weighted_CB)
+        return (
+            weighted_CC + hard_penalty,
+            weighted_PH + hard_penalty,
+            weighted_CB + hard_penalty,
+        )
+
+    def __hard_constraints(self) -> float:
+        """Add the hard constraints to the chromosome.
+
+        Returns:
+            float: The total penalty for the hard constraints.
+        """
+        # Dictionaries for grouping by (classroom, day, time) and (professor, day, time)
+        classroom_usage = {}
+        professor_usage = {}
+
+        for assignment in self.assignments:
+            # Key for classroom: (classroom, day, start, end)
+            key_room = (
+                assignment.classroom,
+                assignment.schedule.day,
+                assignment.schedule.start,
+                assignment.schedule.end,
+            )
+            classroom_usage[key_room] = classroom_usage.get(key_room, 0) + 1
+
+            # Key for professor: (professor, day, start, end)
+            key_prof = (
+                assignment.professor,
+                assignment.schedule.day,
+                assignment.schedule.start,
+                assignment.schedule.end,
+            )
+            professor_usage[key_prof] = professor_usage.get(key_prof, 0) + 1
+
+        # Penalize if the same classroom is used in the same time slot more than once
+        hard_penalty = 0.0
+        for count in classroom_usage.values():
+            if count > 1:
+                hard_penalty += (count - 1) * HARD_PENALTY_WEIGHT
+
+        # Penalize if a professor is assigned to more than one class in the same time slot
+        for count in professor_usage.values():
+            if count > 1:
+                hard_penalty += (count - 1) * HARD_PENALTY_WEIGHT
+
+        # Return this hard penalty
+        return hard_penalty
