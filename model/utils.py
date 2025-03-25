@@ -66,7 +66,7 @@ def to_latex_table(chromosome: Chromosome) -> str:
             asg.subject.name if hasattr(asg.subject, "name") else str(asg.subject)
         )
 
-        row = f"{day_str} & {time_str} & {subject_name} & {asg.classroom} & {asg.professor} \\\\"
+        row = f"{day_str} & {time_str} & {subject_name} & {asg.classroom.name} & {asg.professor.name} \\\\"
         rows.append(row)
 
     # Basic LaTeX table template

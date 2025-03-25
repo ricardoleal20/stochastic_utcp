@@ -137,3 +137,16 @@ class Solver:
         chromosome = min(self._result, key=lambda x: x.objective_value)
         print(f"Final Objective Value: {chromosome.objective_value}")
         return chromosome
+
+    @property
+    def objective_value_result(self) -> tuple[float, float, float]:
+        """Retrieve the objective values of the evolutionary optimization."""
+        if self._result is None:
+            raise RuntimeError(
+                "Solver has not been run yet. Please call solve() first."
+            )
+        if not self._result:
+            raise RuntimeError("No solution has been found.")
+        # Get the final chromosome
+        chromosome = min(self._result, key=lambda x: x.objective_value)
+        return chromosome.objective_value
