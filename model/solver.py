@@ -27,6 +27,7 @@ class Solver:
     _population_size: int
     _max_generations: int
     _mutation_rate: float
+    _alpha: float
     _toolbox: base.Toolbox
     _result: Optional[list]
     __slots__ = (
@@ -34,17 +35,23 @@ class Solver:
         "_max_generations",
         "_mutation_rate",
         "_assignments",
+        "_alpha",
         "_toolbox",
         "_result",
     )
 
     def __init__(
-        self, population_size: int, max_generations: int, mutation_rate: float
+        self,
+        population_size: int,
+        max_generations: int,
+        mutation_rate: float,
+        solution_noise: float = 0.3,
     ):
         self._assignments = set()
         self._population_size = population_size
         self._max_generations = max_generations
         self._mutation_rate = mutation_rate
+        self._alpha = solution_noise
         self._toolbox = base.Toolbox()
         self._result = None
 
@@ -78,7 +85,7 @@ class Solver:
         # Run the individuals creator
         individuals_generator(subjects, self._assignments, self._toolbox)
         # Run the evaluation creator
-        evaluator_generator(self._toolbox, self._mutation_rate)
+        evaluator_generator(self._toolbox, self._mutation_rate, self._alpha)
 
     def solve(self, *, verbose: bool = False) -> None:
         """Runs the evolutionary optimization process using NSGA-II.
@@ -110,7 +117,9 @@ class Solver:
                 population + offspring, k=self._population_size
             )
             if verbose:
-                print(f"Generation {gen} completed")
+                print(
+                    f"Generation {gen} completed. Best objective value: {min(ind.objective_value for ind in population)}"
+                )
         # Extract the Pareto front (first non-dominated front)
         self._result = tools.sortNondominated(
             population, k=len(population), first_front_only=True
@@ -124,4 +133,7 @@ class Solver:
             )
         if not self._result:
             raise RuntimeError("No solution has been found.")
-        return self._result[0]  # Otherwise, just return the first solution
+        # Get the final chromosome
+        chromosome = self._result[0]
+        print(f"Final Objective Value: {chromosome.objective_value}")
+        return chromosome

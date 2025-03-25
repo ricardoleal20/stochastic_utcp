@@ -136,8 +136,7 @@ def individuals_generator(
 
 
 def evaluator_generator(
-    toolbox: base.Toolbox,
-    mutation_rate: float,
+    toolbox: base.Toolbox, mutation_rate: float, alpha: float
 ) -> None:
     """Initialize the method to evaluate each individual"""
 
@@ -145,7 +144,9 @@ def evaluator_generator(
     # Here is a simplified version that returns dummy values.
     def evaluate_individual(ind: Chromosome) -> tuple[float, float, float]:
         # From the chromosome, get the fitness
-        return ind.objective_value
+        # From the objective function, append a random value related to alpha
+        # THIS with the idea to incorporate noise into the evaluation process
+        return tuple(v + random.uniform(-alpha, alpha) for v in ind.objective_value)  # type: ignore
 
     toolbox.register("evaluate", evaluate_individual)
     # Registry operators of crossover and mutation
