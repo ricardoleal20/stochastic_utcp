@@ -118,7 +118,7 @@ def individuals_generator(
             chosen_assignment = random.choice(valid_for_subj)
             # To this assignment, we assign a random expected enrollment
             chosen_assignment = chosen_assignment._replace(
-                expected_enrollment=random.randint(10, 100)
+                expected_enrollment=random.randint(10, 30)
             )
             selected_assignments.append(chosen_assignment)
         # And finally, return the Chromosome

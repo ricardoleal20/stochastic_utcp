@@ -134,6 +134,6 @@ class Solver:
         if not self._result:
             raise RuntimeError("No solution has been found.")
         # Get the final chromosome
-        chromosome = self._result[0]
+        chromosome = min(self._result, key=lambda x: x.objective_value)
         print(f"Final Objective Value: {chromosome.objective_value}")
         return chromosome

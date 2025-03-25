@@ -151,6 +151,17 @@ class Chromosome:
                 hard_penalty += (
                     assignment.expected_enrollment - assignment.classroom.capacity
                 ) * HARD_PENALTY_WEIGHT
+            # Penalize if the classroom is too large for the subject's enrollment
+            elif assignment.expected_enrollment < assignment.classroom.capacity * 0.5:
+                hard_penalty += (
+                    assignment.classroom.capacity - assignment.expected_enrollment
+                ) * HARD_PENALTY_WEIGHT
+            # Penalize if the classroom type is different from the subject's type
+            if (
+                assignment.classroom.type != assignment.subject.type
+                and assignment.subject.type.value != "MIX"
+            ):
+                hard_penalty += HARD_PENALTY_WEIGHT
 
         # Return this hard penalty
         return hard_penalty
