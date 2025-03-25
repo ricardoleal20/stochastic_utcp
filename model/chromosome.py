@@ -10,15 +10,22 @@ based on the variables:
 """
 
 import typing as tp
+import random
 from dataclasses import dataclass
+from itertools import repeat
 
 # Local imports
 from model.types import Assignment
 
+# Weight constants
 W1 = 1.0
 W2 = 1.0
 W3 = 1.0
 HARD_PENALTY_WEIGHT = int(1e9)
+# Other constants as the number of scenarios to test
+NUM_SCENARIOS: int = 10
+NOISE_MEAN = 1.0
+NOISE_STD = 0.1
 
 
 @dataclass(slots=True)
@@ -67,36 +74,35 @@ class Chromosome:
         Returns:
             tuple: (penalty_CC, penalty_PH, penalty_CB)
         """
-        # Define the penalty parameters
-        penalty_CC = 0.0
-        penalty_PH = 0.0
-        penalty_CB = 0.0
+        # Define the multiple scenarios here
+        scenarios_result = []
+        # Then, iterate over the number of scenarios provided
+        for _ in repeat(None, NUM_SCENARIOS):
+            # Get the penalties
+            penalty_CC = self.__calculate_CC()
+            penalty_PH = self.__calculate_PH()
+            penalty_CB = self.__calculate_CB()
 
-        # Iterate over the assignments
-        for assignment in self.assignments:
-            # IF the classroom name does not contain a certain keyword, penalize (e.g., for CC)
-            if "Salón" not in assignment.classroom:
-                penalty_CC += 1.0
-            # If the block duration is less than 2 hours, penalize (e.g., for PH)
-            duration = assignment.schedule.end - assignment.schedule.start
-            if duration < 2.0:
-                penalty_PH += 2.0 - duration
-            # If the classroom is small for the subject (this example is dummy; in reality compare with enrollment)
-            if "Laboratorio" in assignment.classroom:
-                penalty_CB += 1.0
+            # Get the hard penalty from the hard cons
+            hard_penalty = self.__hard_constraints()
 
-        # Get the hard penalty from the hard cons
-        hard_penalty = self.__hard_constraints()
-
-        # Apply the defined weights for each penalty
-        weighted_CC = W1 * penalty_CC
-        weighted_PH = W2 * penalty_PH
-        weighted_CB = W3 * penalty_CB
-
+            # Apply the defined weights for each penalty
+            weighted_CC = W1 * penalty_CC
+            weighted_PH = W2 * penalty_PH
+            weighted_CB = W3 * penalty_CB
+            # Add it on the scenario
+            scenarios_result.append(
+                (
+                    weighted_CC + hard_penalty,
+                    weighted_PH + hard_penalty,
+                    weighted_CB + hard_penalty,
+                )
+            )
+        # At the end, return the average of the scenarios
         return (
-            weighted_CC + hard_penalty,
-            weighted_PH + hard_penalty,
-            weighted_CB + hard_penalty,
+            sum([scenario[0] for scenario in scenarios_result]) / NUM_SCENARIOS,
+            sum([scenario[1] for scenario in scenarios_result]) / NUM_SCENARIOS,
+            sum([scenario[2] for scenario in scenarios_result]) / NUM_SCENARIOS,
         )
 
     def __hard_constraints(self) -> float:
@@ -139,5 +145,67 @@ class Chromosome:
             if count > 1:
                 hard_penalty += (count - 1) * HARD_PENALTY_WEIGHT
 
+        # Penalize if the capacity of the classroom is insufficient for the subject's enrollment
+        for assignment in self.assignments:
+            if assignment.expected_enrollment > assignment.classroom.capacity:
+                hard_penalty += (
+                    assignment.expected_enrollment - assignment.classroom.capacity
+                ) * HARD_PENALTY_WEIGHT
+
         # Return this hard penalty
         return hard_penalty
+
+    def __stochastic_factor(self) -> float:
+        """Generate a stochastic factor with a normal distribution (mean 1, std NOISE_STD)."""
+        return random.gauss(NOISE_MEAN, NOISE_STD)
+
+    def __calculate_CC(self) -> float:
+        """CC Penalization: Penalize the consecutive changes of classroom for the same professor.
+        For example, if a professor teaches two consecutive classes and they are assigned to different classrooms,
+        a penalty is added. A stochastic factor is added.
+        """
+        cc_penalty = 0.0
+        # Group assignments by professor and day
+        prof_day = {}
+        for assignment in self.assignments:
+            key = (assignment.professor, assignment.schedule.day)
+            prof_day.setdefault(key, []).append(assignment)
+        for assignments in prof_day.values():
+            # Sort by start time
+            assignments.sort(key=lambda a: a.schedule.start)
+            for i in range(1, len(assignments)):
+                prev = assignments[i - 1]
+                curr = assignments[i]
+                # If the same professor has consecutive assignments on the same day
+                # and uses different classrooms, penalize.
+                if prev.classroom != curr.classroom:
+                    cc_penalty += 1.0 * self.__stochastic_factor()
+        return cc_penalty
+
+    def __calculate_PH(self) -> float:
+        """PH Penalty: Penalizes if the required consecutive hours for the subject are not met.
+        For example, if the block of the subject does not reach 2 consecutive hours.
+        A stochastic factor is added.
+        """
+        ph_penalty = 0.0
+        # Iterate over the assignments to check the duration of the class
+        for assignment in self.assignments:
+            duration = assignment.schedule.end - assignment.schedule.start
+            # If the duration is less than 2 hours, penalize
+            if duration < 2.0:
+                ph_penalty += (2.0 - duration) * self.__stochastic_factor()
+        return ph_penalty
+
+    def __calculate_CB(self) -> float:
+        """CB penalty: Penalizes the low selection of large classrooms for subjects with high enrollment.
+        For example, if a large classroom is assigned to a subject with high demand.
+        """
+        cb_penalty = 0.0
+        for assignment in self.assignments:
+            # Based on the capacity of the classroom and the time of enrollment
+            # for this assignment, penalize if the classroom is too small
+            if assignment.classroom.capacity < assignment.expected_enrollment:
+                cb_penalty += (
+                    assignment.expected_enrollment / assignment.classroom.capacity
+                ) * self.__stochastic_factor()
+        return cb_penalty

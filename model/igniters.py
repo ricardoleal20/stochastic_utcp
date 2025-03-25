@@ -90,6 +90,7 @@ def generate_valid_assignments(
                             classroom=room,
                             professor=prof,
                             schedule=sched,
+                            expected_enrollment=0,  # This is going to be modified in the solver
                         )
                         valid_assignments.add(assignment)
     return valid_assignments
@@ -115,6 +116,10 @@ def individuals_generator(
                 raise ValueError(f"No valid assignment found for subject: {subj.name}")
             # Select a random assignment (can be modified)
             chosen_assignment = random.choice(valid_for_subj)
+            # To this assignment, we assign a random expected enrollment
+            chosen_assignment = chosen_assignment._replace(
+                expected_enrollment=random.randint(10, 100)
+            )
             selected_assignments.append(chosen_assignment)
         # And finally, return the Chromosome
         return creator.Individual(Chromosome(selected_assignments))  # type: ignore
